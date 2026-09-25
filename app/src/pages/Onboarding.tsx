@@ -134,54 +134,128 @@ export function LocalOnboarding() {
 
 export function SignIn() {
   const { cloudStore } = useApp()
+  const auth = cloudStore!.client.auth
+  const [method, setMethod] = useState<'password' | 'link'>('password')
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin')
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [sent, setSent] = useState(false)
+  const [info, setInfo] = useState<string | null>(null)
   const [code, setCode] = useState('')
   const [error, setError] = useState<unknown>(null)
   const [busy, setBusy] = useState(false)
 
-  const send = async (e: FormEvent) => {
-    e.preventDefault()
+  const run = async (fn: () => Promise<{ error: unknown }>) => {
     setBusy(true)
     setError(null)
-    const { error } = await cloudStore!.client.auth.signInWithOtp({
-      email: email.trim(),
-      options: { emailRedirectTo: window.location.origin },
+    setInfo(null)
+    try {
+      const { error } = await fn()
+      if (error) setError(error)
+      return !error
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const submitPassword = async (e: FormEvent) => {
+    e.preventDefault()
+    if (mode === 'signin') {
+      await run(() => auth.signInWithPassword({ email: email.trim(), password }))
+      return
+    }
+    let needsConfirm = false
+    const ok = await run(async () => {
+      const res = await auth.signUp({
+        email: email.trim(),
+        password,
+        options: { emailRedirectTo: window.location.origin },
+      })
+      needsConfirm = !res.error && !res.data.session
+      return res
     })
-    setBusy(false)
-    if (error) setError(error)
-    else setSent(true)
+    if (ok && needsConfirm) {
+      setMode('signin')
+      setInfo('Account created. Click the confirmation link we emailed you, then come back here and sign in.')
+    }
+  }
+
+  const sendLink = async (e: FormEvent) => {
+    e.preventDefault()
+    const ok = await run(() =>
+      auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: window.location.origin } }),
+    )
+    if (ok) setSent(true)
   }
 
   const verify = async (e: FormEvent) => {
     e.preventDefault()
-    setBusy(true)
-    setError(null)
-    const { error } = await cloudStore!.client.auth.verifyOtp({ email: email.trim(), token: code.trim(), type: 'email' })
-    setBusy(false)
-    if (error) setError(error)
+    await run(() => auth.verifyOtp({ email: email.trim(), token: code.trim(), type: 'email' }))
   }
+
+  const emailField = (
+    <Field label="Email" htmlFor="email">
+      <input
+        id="email"
+        type="email"
+        className="input"
+        required
+        autoComplete="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
+    </Field>
+  )
 
   return (
     <Shell>
       <Card>
-        {!sent ? (
-          <form className="space-y-4" onSubmit={send}>
-            <h2 className="text-lg font-semibold">Sign in</h2>
-            <Field label="Email" htmlFor="email">
+        {method === 'password' ? (
+          <form className="space-y-4" onSubmit={submitPassword}>
+            <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
+              {(['signin', 'signup'] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  className={`rounded-lg py-1.5 text-sm font-medium ${mode === m ? 'bg-white shadow dark:bg-slate-950' : ''}`}
+                  onClick={() => setMode(m)}
+                >
+                  {m === 'signin' ? 'Sign in' : 'Create account'}
+                </button>
+              ))}
+            </div>
+            {emailField}
+            <Field label="Password" htmlFor="password" hint={mode === 'signup' ? 'At least 8 characters.' : undefined}>
               <input
-                id="email"
-                type="email"
+                id="password"
+                type="password"
                 className="input"
                 required
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                minLength={mode === 'signup' ? 8 : undefined}
+                autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
               />
             </Field>
+            {info && <p className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">{info}</p>}
+            <ErrorNote error={error} />
+            <button className="btn btn-primary w-full" disabled={busy}>
+              {mode === 'signin' ? 'Sign in' : 'Create account'}
+            </button>
+            <button type="button" className="w-full text-center text-sm text-slate-500 underline" onClick={() => setMethod('link')}>
+              Email me a sign-in link instead
+            </button>
+          </form>
+        ) : !sent ? (
+          <form className="space-y-4" onSubmit={sendLink}>
+            <h2 className="text-lg font-semibold">Sign in with an email link</h2>
+            {emailField}
             <ErrorNote error={error} />
             <button className="btn btn-primary w-full" disabled={busy}>
               Email me a sign-in link
+            </button>
+            <button type="button" className="w-full text-center text-sm text-slate-500 underline" onClick={() => setMethod('password')}>
+              Use a password instead
             </button>
           </form>
         ) : (
@@ -189,7 +263,7 @@ export function SignIn() {
             <h2 className="text-lg font-semibold">Check your email</h2>
             <p className="text-sm text-slate-600 dark:text-slate-400">
               We sent a sign-in link to <strong>{email}</strong>. Open it on this device, or enter the code from the
-              email.
+              email if there is one.
             </p>
             <Field label="Code" htmlFor="otp">
               <input

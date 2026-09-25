@@ -42,10 +42,10 @@ npm run dev          # http://localhost:5173
 
 ### 2. Team mode (shared across phones) — Supabase, free tier
 1. Create a free project at supabase.com.
-2. In the SQL editor, run `app/supabase/migrations/20260925000000_init.sql`. Alternatively, run `supabase db push` with the Supabase CLI.
+2. In the SQL editor, run the files in `app/supabase/migrations/` in order. Alternatively, run `supabase db push` with the Supabase CLI.
 3. Under Authentication → URL Configuration, set the Site URL to your deployed URL (and `http://localhost:5173` for dev).
 4. Copy `app/.env.example` to `app/.env.local` and fill in `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (Project Settings → API).
-5. Sign in with an email magic link, create the team, and share the **join code** from the Team page. Advisors join with the *Advisor* role and get read-only access, enforced by row-level security in the database, not just the UI.
+5. Create an account (email + password, or an email sign-in link), create the team, and share the **join code** from the Team page. Advisors join with the *Advisor* role and get read-only access, enforced by row-level security in the database, not just the UI.
 
 Optional: add `{{ .Token }}` to the Supabase "Magic Link" email template so people can type a 6-digit code instead of clicking the link. That helps when the email opens on a different device.
 
