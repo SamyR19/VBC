@@ -3,6 +3,31 @@ import { nowIso, type NewRow, type Row, type Store } from './store'
 
 const PREFIX = 'vbc:'
 
+// Columns added after the first release — fill them in for data saved by older versions.
+const ROW_DEFAULTS: Partial<Record<TableName, Record<string, unknown>>> = {
+  attempts: {
+    final_revenue: null,
+    final_expenses: null,
+    ending_cash: null,
+    total_debt: null,
+    interest_paid: null,
+    customer_satisfaction: null,
+    employees: null,
+    locations: null,
+    checkpoints: [],
+    run_notes: null,
+  },
+  backlog: {
+    category: null,
+    from_value: null,
+    to_value: null,
+    expected_effect: null,
+    rationale: null,
+    effort: null,
+    source: null,
+  },
+}
+
 export interface KV {
   getItem(key: string): string | null
   setItem(key: string, value: string): void
@@ -33,7 +58,8 @@ export class LocalStore implements Store {
   }
 
   private rows<T extends TableName>(table: T): Row<T>[] {
-    return this.read<Row<T>[]>(table, [])
+    const defaults = ROW_DEFAULTS[table] ?? {}
+    return this.read<Row<T>[]>(table, []).map((r) => ({ ...defaults, ...r }))
   }
 
   async list<T extends TableName>(table: T, teamId: string): Promise<Row<T>[]> {
@@ -73,7 +99,8 @@ export class LocalStore implements Store {
   }
 
   async getTeam(teamId: string): Promise<Team | null> {
-    return this.read<Team[]>('teams', []).find((t) => t.id === teamId) ?? null
+    const t = this.read<Team[]>('teams', []).find((x) => x.id === teamId)
+    return t ? { ...t, ai_in_rounds: t.ai_in_rounds ?? false } : null
   }
 
   async updateTeam(teamId: string, patch: Partial<Team>): Promise<Team> {

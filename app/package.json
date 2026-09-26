@@ -10,7 +10,8 @@
     "lint": "oxlint src",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "test:db": "bash supabase/tests/run.sh"
+    "test:db": "bash supabase/tests/run.sh",
+    "test:fn": "node supabase/tests/coach_mock_test.mjs deno"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",

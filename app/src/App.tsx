@@ -5,11 +5,13 @@ import { AttemptDetail } from './pages/AttemptDetail'
 import { AttemptForm } from './pages/AttemptForm'
 import { Attempts } from './pages/Attempts'
 import { Backlog } from './pages/Backlog'
+import { Compare } from './pages/Compare'
 import { Home } from './pages/Home'
 import { CloudOnboarding, LocalOnboarding, SignIn } from './pages/Onboarding'
 import { RoundPage } from './pages/RoundPage'
 import { Settings } from './pages/Settings'
 import { useApp } from './state/app'
+import { CoachProvider } from './state/coach'
 
 export default function App() {
   const { status, mode, team } = useApp()
@@ -21,10 +23,17 @@ export default function App() {
   return (
     <Routes>
       {/* key forces a clean remount when switching teams */}
-      <Route element={<Layout key={team.id} />}>
+      <Route
+        element={
+          <CoachProvider key={team.id}>
+            <Layout />
+          </CoachProvider>
+        }
+      >
         <Route index element={<Home />} />
         <Route path="attempts" element={<Attempts />} />
         <Route path="attempts/new" element={<AttemptForm key="new" />} />
+        <Route path="attempts/compare" element={<Compare />} />
         <Route path="attempts/:id" element={<AttemptDetail />} />
         <Route path="attempts/:id/edit" element={<AttemptForm key="edit" />} />
         <Route path="backlog" element={<Backlog />} />

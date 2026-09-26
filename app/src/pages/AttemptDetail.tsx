@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Card, Delta, ErrorNote, PageHeader, PbBadge, Spinner, StatusChip } from '../components/ui'
 import {
@@ -12,10 +12,12 @@ import {
   scoreOf,
 } from '../lib/metrics'
 import { METRIC_LABELS } from '../lib/season'
+import { emptyIdea } from '../lib/data'
 import { newId } from '../lib/store/store'
 import type { Attempt, Metric } from '../lib/types'
 import { formatET } from '../lib/time'
 import { useTeam } from '../state/app'
+import { useCoachPage } from '../state/coach'
 import { useActiveRound, useMemberName, useMutations, useRows } from '../state/data'
 
 function ScoreRow({ label, attempt, compare, metric }: { label: string; attempt: Attempt; compare: Attempt | null; metric: Metric }) {
@@ -47,6 +49,14 @@ export function AttemptDetail() {
   const [idea, setIdea] = useState('')
   const [error, setError] = useState<unknown>(null)
 
+  const current = attempts.find((x) => x.id === id)
+  useCoachPage(
+    'Viewing one attempt',
+    current
+      ? `Attempt "${current.hypothesis}" (status ${current.status}${current.verdict ? `, verdict ${current.verdict}` : ''}), profit ${formatMoney(current.final_profit)}, net worth ${formatMoney(current.final_net_worth)}. Decisions changed: ${current.variables_changed.join(', ') || 'none recorded'}.`
+      : '',
+  )
+
   if (isLoading) return <Spinner />
   const a = attempts.find((x) => x.id === id)
   if (!a) return <p>Attempt not found. <Link to="/attempts" className="underline">Back to attempts</Link></p>
@@ -63,14 +73,15 @@ export function AttemptDetail() {
   const diff = compareTo ? diffDecisions(compareTo.decisions, a.decisions) : []
   const win = windows.find((w) => w.id === a.window_id)
   const score = scoreOf(a, metric)
+  const baselineCheckpoints = baseline?.checkpoints?.length ? baseline.checkpoints : null
 
   const addIdea = async () => {
     if (!idea.trim()) return
     try {
       await backlog.insert.mutateAsync({
         id: newId(),
+        ...emptyIdea(),
         idea: idea.trim(),
-        variable: null,
         priority: 0,
         status: 'queued',
         tested_attempt_id: null,
@@ -135,20 +146,30 @@ export function AttemptDetail() {
         <Card>
           <div className="section-title mb-2">All results</div>
           <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
-            <dt className="text-slate-500">Profit</dt>
-            <dd className="text-right tabular-nums">{formatMoney(a.final_profit)}</dd>
-            <dt className="text-slate-500">Net worth</dt>
-            <dd className="text-right tabular-nums">{formatMoney(a.final_net_worth)}</dd>
-            <dt className="text-slate-500">Points</dt>
-            <dd className="text-right tabular-nums">{a.final_points ?? '—'}</dd>
-            <dt className="text-slate-500">Lowest cash</dt>
-            <dd className="text-right tabular-nums">{formatMoney(a.cash_low_point)}</dd>
-            <dt className="text-slate-500">Loan</dt>
-            <dd className="text-right">{a.loan_taken == null ? '—' : a.loan_taken ? 'Yes' : 'No'}</dd>
-            <dt className="text-slate-500">Periods</dt>
-            <dd className="text-right tabular-nums">{a.sim_periods_completed ?? '—'}</dd>
-            <dt className="text-slate-500">Minutes</dt>
-            <dd className="text-right tabular-nums">{a.minutes_spent ?? '—'}</dd>
+            {(
+              [
+                ['Profit', formatMoney(a.final_profit)],
+                ['Net worth', formatMoney(a.final_net_worth)],
+                ['Points', a.final_points ?? '—'],
+                ['Revenue', formatMoney(a.final_revenue)],
+                ['Expenses', formatMoney(a.final_expenses)],
+                ['Ending cash', formatMoney(a.ending_cash)],
+                ['Lowest cash', formatMoney(a.cash_low_point)],
+                ['Loan taken', a.loan_taken == null ? '—' : a.loan_taken ? 'Yes' : 'No'],
+                ['Debt remaining', formatMoney(a.total_debt)],
+                ['Interest paid', formatMoney(a.interest_paid)],
+                ['Satisfaction', a.customer_satisfaction == null ? '—' : `${a.customer_satisfaction}%`],
+                ['Employees', a.employees ?? '—'],
+                ['Locations', a.locations ?? '—'],
+                ['Periods', a.sim_periods_completed ?? '—'],
+                ['Minutes', a.minutes_spent ?? '—'],
+              ] as [string, string | number][]
+            ).map(([k, v]) => (
+              <Fragment key={k}>
+                <dt className="text-slate-500">{k}</dt>
+                <dd className="text-right tabular-nums">{v}</dd>
+              </Fragment>
+            ))}
           </dl>
         </Card>
       </div>
@@ -202,10 +223,57 @@ export function AttemptDetail() {
         )}
       </Card>
 
-      {a.lesson && (
-        <Card>
-          <h2 className="section-title mb-1">Lesson learned</h2>
-          <p className="whitespace-pre-wrap">{a.lesson}</p>
+      {(a.checkpoints ?? []).length > 0 && (
+        <Card className="overflow-x-auto">
+          <h2 className="section-title mb-2">Year by year</h2>
+          <table className="w-full text-sm">
+            <thead className="text-left text-xs text-slate-500">
+              <tr>
+                <th className="py-1 font-medium">Period</th>
+                <th className="py-1 font-medium">Profit</th>
+                {baselineCheckpoints && <th className="py-1 font-medium">vs baseline</th>}
+                <th className="py-1 font-medium">Net worth</th>
+                <th className="py-1 font-medium">Cash</th>
+                <th className="py-1 font-medium">Revenue</th>
+                <th className="py-1 font-medium">Note</th>
+              </tr>
+            </thead>
+            <tbody>
+              {a.checkpoints.map((c) => {
+                const bp = baselineCheckpoints?.find((x) => x.period === c.period)?.profit
+                return (
+                  <tr key={c.period} className="border-t border-slate-100 dark:border-slate-800">
+                    <td className="py-1.5 font-medium">{c.period}</td>
+                    <td className="py-1.5 tabular-nums">{formatMoney(c.profit)}</td>
+                    {baselineCheckpoints && (
+                      <td className="py-1.5">{c.profit != null && bp != null ? <Delta value={c.profit - bp} metric="profit" /> : '—'}</td>
+                    )}
+                    <td className="py-1.5 tabular-nums">{formatMoney(c.net_worth)}</td>
+                    <td className="py-1.5 tabular-nums">{formatMoney(c.cash)}</td>
+                    <td className="py-1.5 tabular-nums">{formatMoney(c.revenue)}</td>
+                    <td className="py-1.5 text-slate-500">{c.note}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </Card>
+      )}
+
+      {(a.run_notes || a.lesson) && (
+        <Card className="space-y-3">
+          {a.run_notes && (
+            <div>
+              <h2 className="section-title mb-1">What happened</h2>
+              <p className="whitespace-pre-wrap">{a.run_notes}</p>
+            </div>
+          )}
+          {a.lesson && (
+            <div>
+              <h2 className="section-title mb-1">Lesson learned</h2>
+              <p className="whitespace-pre-wrap">{a.lesson}</p>
+            </div>
+          )}
         </Card>
       )}
 

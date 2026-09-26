@@ -21,7 +21,11 @@ Qualifying rounds allow unlimited attempts and only the best one counts, so the 
 | **Round** | ET schedule incl. mini-challenges, round-day checklist (integrity items included), leaderboard snapshots (your rank and the 2nd-place score), hours per member |
 | **Team** | Members, join code, rounds (dates, **ranking metric**, cutoff), decision-name presets, CSV export, JSON backup/import |
 
-A **competition-mode banner** turns on automatically while a round or mini-challenge window is open. It reminds you to keep the app off the sim device. There are **no AI features**, no browser extension, and nothing connects to Knowledge Matters. That's deliberate: DECA disqualifies teams for using external tools inside the sim.
+Every page has a **step-by-step guide on the left**. On phones it's the "How to" panel at the top.
+
+An **AI coach** (OpenAI) sits on the right, or opens with the ✨ button on smaller screens. It reads your logged runs, suggests your next single-change experiments with exact values (one tap adds them to Ideas), analyses results and plans sessions. It's **off while a competition window is open**. See [`docs/ai-coach.md`](docs/ai-coach.md) for the design, the integrity rules and **how to add your OpenAI key**.
+
+A **competition-mode banner** turns on automatically while a round or mini-challenge window is open. Nothing in the app connects to Knowledge Matters: no browser extension, no overlay, no scraping. That's deliberate, because DECA disqualifies teams for using external tools inside the sim.
 
 ### Things the research could not confirm (the app is built to absorb them)
 - **Ranking metric.** Sources disagree between cumulative profit, net worth and points. Every attempt stores all three. Each round has a metric setting, and changing it recalculates every PB instantly. It defaults to *profit*, marked **unverified** until you tick "verified" after reading the 2026-27 VBC Guidelines PDF.

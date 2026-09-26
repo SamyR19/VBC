@@ -6,6 +6,7 @@ import { newId, nowIso } from '../lib/store/store'
 import type { ChecklistItem } from '../lib/types'
 import { formatDuration, formatET, formatLocal, todayISODate } from '../lib/time'
 import { useTeam } from '../state/app'
+import { useCoachPage } from '../state/coach'
 import { useActiveRound, useInvalidateAll, useMemberName, useMutations, useNow, useRows } from '../state/data'
 
 function ChecklistRow({
@@ -318,6 +319,7 @@ export function RoundPage() {
   const { round, isLoading } = useActiveRound()
   const { data: windows = [] } = useRows('round_windows')
   const now = useNow(1000 * 30)
+  useCoachPage('Round page (schedule, checklist, leaderboard)')
   if (isLoading) return <Spinner />
   if (!round) return <p>No round selected.</p>
   const phase = roundPhase(round, now)

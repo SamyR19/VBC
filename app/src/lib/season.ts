@@ -123,3 +123,98 @@ export const SEASON_2026_27: SeedRound[] = [
     windows: [],
   },
 ]
+
+// ---- Structured decision template ----
+// The sim's exact screens are not publicly documented, so these fields follow the decision
+// areas Knowledge Matters lists for VB Entrepreneurship (financing, team, resources, pricing,
+// marketing, operations, expansion). Leave a field blank if the sim doesn't ask for it, and
+// add your own rows under "Other" for anything missing.
+
+export interface DecisionField {
+  key: string
+  hint: string
+  placeholder?: string
+}
+
+export interface DecisionGroup {
+  group: string
+  why: string
+  fields: DecisionField[]
+}
+
+export const DECISION_TEMPLATE: DecisionGroup[] = [
+  {
+    group: 'Financing',
+    why: 'How you paid to start. Loans add interest costs; investors take part of your ownership (net worth).',
+    fields: [
+      { key: 'Personal savings invested', hint: 'Dollars of your own money put into the business at the start.', placeholder: '$20,000' },
+      { key: 'Bank loan amount', hint: 'Total borrowed from the bank. 0 if none.', placeholder: '$50,000' },
+      { key: 'Loan interest rate', hint: 'Annual rate shown when you took the loan.', placeholder: '7%' },
+      { key: 'Loan term', hint: 'How long until the loan must be repaid.', placeholder: '5 years' },
+      { key: 'Investor money raised', hint: 'Cash from investors (equity or debt).', placeholder: '$25,000' },
+      { key: 'Equity given to investors', hint: 'Percent of the business investors own in return.', placeholder: '20%' },
+    ],
+  },
+  {
+    group: 'Location & resources',
+    why: 'Where you operate and what you buy to run. Drives rent, capacity and fixed costs.',
+    fields: [
+      { key: 'Location', hint: 'Which site/neighborhood you picked.', placeholder: 'Downtown' },
+      { key: 'Rent', hint: 'Rent per period as shown in the sim.', placeholder: '$3,000/month' },
+      { key: 'Equipment purchased', hint: 'Main equipment or upgrades bought, with cost.', placeholder: '2 blenders, $1,200' },
+      { key: 'Supplies / inventory ordered', hint: 'Starting supplies or reorder amount.', placeholder: '500 units' },
+    ],
+  },
+  {
+    group: 'Staffing',
+    why: 'Your team. Too few staff loses customers; too many or overpaid staff eats profit.',
+    fields: [
+      { key: 'Employees', hint: 'Number of people hired at the start (change later runs one at a time).', placeholder: '3' },
+      { key: 'Wage', hint: 'Hourly pay offered. Research suggests fair wages attract better employees.', placeholder: '$15/hr' },
+      { key: 'Hours / shifts', hint: 'Scheduled hours or shift pattern.', placeholder: '2 shifts, 40 hrs each' },
+      { key: 'Hiring notes', hint: 'Who you picked and why (skills, references).', placeholder: 'Picked 2 with experience' },
+    ],
+  },
+  {
+    group: 'Pricing',
+    why: 'The most direct lever on profit. Change it in small steps and record the exact number.',
+    fields: [
+      { key: 'Main price', hint: 'Price of your core product/service.', placeholder: '$5.50' },
+      { key: 'Premium / tier price', hint: 'Higher tier or add-on price if the sim offers tiers.', placeholder: '$7.00' },
+      { key: 'Discounts / promotions', hint: 'Any sale, coupon or bundle you ran, and when.', placeholder: '10% off Year 1 Q1' },
+    ],
+  },
+  {
+    group: 'Marketing',
+    why: 'Brings customers in. Record spend per period and which channels, so you can compare runs.',
+    fields: [
+      { key: 'Marketing budget', hint: 'Spend per period.', placeholder: '$800/month' },
+      { key: 'Marketing channels', hint: 'Where you advertised.', placeholder: 'Social, flyers' },
+      { key: 'Target customer', hint: 'Who the ads aimed at, if the sim asks.', placeholder: 'Students' },
+    ],
+  },
+  {
+    group: 'Operations',
+    why: 'Day-to-day running: hours, quality, workflow. Affects satisfaction and costs.',
+    fields: [
+      { key: 'Hours open', hint: 'Opening hours or days per week.', placeholder: '7am–7pm, 7 days' },
+      { key: 'Quality / service level', hint: 'Any quality setting or product mix choice.', placeholder: 'Premium ingredients' },
+      { key: 'Workflow changes', hint: 'Changes made to employee tasks during the run.', placeholder: 'Moved 1 staff to register' },
+    ],
+  },
+  {
+    group: 'Expansion',
+    why: 'Adding businesses or locations can multiply profit but costs cash — timing matters.',
+    fields: [
+      { key: 'Expansion timing', hint: 'When you expanded (sim year/period).', placeholder: 'Start of Year 3' },
+      { key: 'What was added', hint: 'New location or new business type.', placeholder: '2nd smoothie shop, uptown' },
+      { key: 'Locations at end', hint: 'Total locations/businesses when the run ended.', placeholder: '2' },
+    ],
+  },
+]
+
+export const TEMPLATE_KEYS = new Set(DECISION_TEMPLATE.flatMap((g) => g.fields.map((f) => f.key.toLowerCase())))
+
+export const IDEA_CATEGORIES = [...DECISION_TEMPLATE.map((g) => g.group), 'Timing', 'Other']
+
+export const DEFAULT_PERIODS = ['Year 1', 'Year 2', 'Year 3', 'Year 4', 'Year 5']

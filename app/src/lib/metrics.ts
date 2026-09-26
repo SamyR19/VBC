@@ -173,3 +173,86 @@ export function competitionActive(team: Team, rounds: Round[], windows: RoundWin
   const liveRound = rounds.some((r) => r.kind !== 'practice' && roundPhase(r, now) === 'open')
   return liveRound || openWindow(windows, now) != null
 }
+
+// ---- What's working: effect of each changed decision ----
+
+export interface VariableEffect {
+  key: string
+  /** Runs where this was the ONLY change vs. the baseline (clean evidence). */
+  cleanRuns: number
+  /** Runs where it changed together with other decisions (confounded). */
+  mixedRuns: number
+  /** Average score change vs. baseline across clean runs. */
+  avgDelta: number | null
+  bestDelta: number | null
+  worstDelta: number | null
+  improved: number
+  /** Most recent clean change, e.g. "5.00 → 5.50: +$2,500". */
+  examples: { attemptId: string; before: string | null; after: string | null; delta: number }[]
+}
+
+/**
+ * For every decision that changed between a run and its baseline, summarise how the score moved.
+ * Only single-change runs count as clean evidence; multi-change runs are counted but not averaged.
+ */
+export function variableEffects(attempts: Attempt[], metric: Metric): VariableEffect[] {
+  const byId = new Map(attempts.map((a) => [a.id, a]))
+  const acc = new Map<string, VariableEffect & { deltas: number[] }>()
+  const get = (key: string) => {
+    const k = key.trim().toLowerCase()
+    let e = acc.get(k)
+    if (!e) {
+      e = { key: key.trim(), cleanRuns: 0, mixedRuns: 0, avgDelta: null, bestDelta: null, worstDelta: null, improved: 0, examples: [], deltas: [] }
+      acc.set(k, e)
+    }
+    return e
+  }
+  for (const a of [...attempts].sort(byTime)) {
+    if (!isScored(a, metric) || !a.parent_attempt_id) continue
+    const base = byId.get(a.parent_attempt_id)
+    if (!base || !isScored(base, metric)) continue
+    const rows = diffDecisions(base.decisions, a.decisions).filter((r) => r.kind !== 'same')
+    if (rows.length === 0) continue
+    const delta = (scoreOf(a, metric) as number) - (scoreOf(base, metric) as number)
+    if (rows.length > 1) {
+      for (const r of rows) get(r.key).mixedRuns++
+      continue
+    }
+    const e = get(rows[0].key)
+    e.cleanRuns++
+    e.deltas.push(delta)
+    if (delta > 0) e.improved++
+    e.examples.unshift({ attemptId: a.id, before: rows[0].before, after: rows[0].after, delta })
+  }
+  return [...acc.values()]
+    .map(({ deltas, ...e }) => ({
+      ...e,
+      avgDelta: deltas.length ? deltas.reduce((s, d) => s + d, 0) / deltas.length : null,
+      bestDelta: deltas.length ? Math.max(...deltas) : null,
+      worstDelta: deltas.length ? Math.min(...deltas) : null,
+      examples: e.examples.slice(0, 3),
+    }))
+    .sort((x, y) => (y.avgDelta ?? -Infinity) - (x.avgDelta ?? -Infinity) || y.cleanRuns - x.cleanRuns)
+}
+
+export interface RunStats {
+  count: number
+  scored: number
+  best: number | null
+  mean: number | null
+  median: number | null
+  minutes: number
+}
+
+export function runStats(attempts: Attempt[], metric: Metric): RunStats {
+  const scores = attempts.filter((a) => isScored(a, metric)).map((a) => scoreOf(a, metric) as number).sort((a, b) => a - b)
+  const mid = Math.floor(scores.length / 2)
+  return {
+    count: attempts.length,
+    scored: scores.length,
+    best: scores.length ? scores[scores.length - 1] : null,
+    mean: scores.length ? scores.reduce((s, x) => s + x, 0) / scores.length : null,
+    median: scores.length ? (scores.length % 2 ? scores[mid] : (scores[mid - 1] + scores[mid]) / 2) : null,
+    minutes: attempts.reduce((s, a) => s + (a.minutes_spent ?? 0), 0),
+  }
+}

@@ -125,3 +125,30 @@ describe('round timing', () => {
     expect(competitionActive({ competition_mode: 'off' } as Team, [r1], [], new Date('2026-10-15T00:00:00Z'))).toBe(false)
   })
 })
+
+describe('variableEffects', () => {
+  it('averages clean single-change runs and counts confounded ones separately', async () => {
+    const { variableEffects, runStats } = await import('./metrics')
+    const base = makeAttempt({ final_profit: 1000, decisions: [{ key: 'Price', value: '5' }, { key: 'Wage', value: '15' }] })
+    const p1 = makeAttempt({ parent_attempt_id: base.id, final_profit: 1500, decisions: [{ key: 'Price', value: '5.5' }, { key: 'Wage', value: '15' }] })
+    const p2 = makeAttempt({ parent_attempt_id: base.id, final_profit: 800, decisions: [{ key: 'price', value: '6' }, { key: 'Wage', value: '15' }] })
+    const mixed = makeAttempt({ parent_attempt_id: base.id, final_profit: 3000, decisions: [{ key: 'Price', value: '7' }, { key: 'Wage', value: '12' }] })
+    const w = makeAttempt({ parent_attempt_id: p1.id, final_profit: 1400, decisions: [{ key: 'Price', value: '5.5' }, { key: 'Wage', value: '14' }] })
+    const bad = makeAttempt({ parent_attempt_id: base.id, final_profit: 9999, status: 'bad_data', decisions: [{ key: 'Price', value: '9' }] })
+    const fx = variableEffects([base, p1, p2, mixed, w, bad], 'profit')
+    const price = fx.find((e) => e.key.toLowerCase() === 'price')!
+    expect(price.cleanRuns).toBe(2)
+    expect(price.mixedRuns).toBe(1)
+    expect(price.avgDelta).toBe(150)
+    expect(price.bestDelta).toBe(500)
+    expect(price.worstDelta).toBe(-200)
+    expect(price.improved).toBe(1)
+    const wage = fx.find((e) => e.key === 'Wage')!
+    expect(wage.cleanRuns).toBe(1)
+    expect(wage.avgDelta).toBe(-100)
+    expect(wage.mixedRuns).toBe(1)
+
+    const s = runStats([base, p1, p2, mixed, w, bad], 'profit')
+    expect(s).toMatchObject({ count: 6, scored: 5, best: 3000, median: 1400 })
+  })
+})

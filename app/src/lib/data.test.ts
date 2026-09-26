@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { attemptsToCsv, exportBackup, importBackup, seedSeason } from './data'
+import { attemptsToCsv, emptyIdea, exportBackup, importBackup, seedSeason } from './data'
 import { LocalStore } from './store/local'
 import { newId, nowIso } from './store/store'
 import { makeAttempt, MemoryKV } from './testing'
@@ -11,6 +11,7 @@ const team = (name: string): Team => ({
   track: 'entrepreneurship',
   business_type: null,
   competition_mode: 'auto',
+  ai_in_rounds: false,
   decision_keys: [],
   join_code: null,
   created_at: nowIso(),
@@ -37,7 +38,7 @@ describe('backup round-trip', () => {
     const rounds = await store.list('rounds', t.id)
     const r1 = rounds.find((r) => r.kind === 'round1')!
     const member = await store.insert('members', { id: newId(), team_id: t.id, user_id: null, display_name: 'Sam', role: 'student' })
-    const idea = await store.insert('backlog', { id: newId(), team_id: t.id, idea: 'x', variable: null, priority: 0, status: 'queued', tested_attempt_id: null })
+    const idea = await store.insert('backlog', { id: newId(), team_id: t.id, ...emptyIdea(), idea: 'x', priority: 0, status: 'queued', tested_attempt_id: null })
     const base = await store.insert('attempts', makeAttempt({ id: newId(), team_id: t.id, round_id: r1.id, final_profit: 10, operator_id: member.id }))
     const next = await store.insert('attempts', makeAttempt({ id: newId(), team_id: t.id, round_id: r1.id, parent_attempt_id: base.id, backlog_id: idea.id }))
     await store.update('backlog', idea.id, { tested_attempt_id: next.id, status: 'tested' })

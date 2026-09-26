@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { Card, ErrorNote, Field, PageHeader, TagInput, numToInput, parseNum } from '../components/ui'
+import { localAi } from '../lib/coachClient'
 import { attemptsToCsv, download, exportBackup, importBackup, isBackup } from '../lib/data'
 import { BUSINESS_TYPES, METRIC_LABELS } from '../lib/season'
 import { newId } from '../lib/store/store'
@@ -517,6 +518,83 @@ function AccountCard() {
   )
 }
 
+function AiCard() {
+  const { mode, team, store, setTeam, canEdit } = useTeam()
+  const [key, setKey] = useState(() => (mode === 'local' ? localAi.getKey() : ''))
+  const [model, setModel] = useState(() => (mode === 'local' ? localAi.getModel() : ''))
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<unknown>(null)
+
+  return (
+    <Card className="space-y-3">
+      <h2 className="section-title">AI coach</h2>
+      {mode === 'cloud' ? (
+        <p className="text-sm text-slate-600 dark:text-slate-400">
+          The OpenAI key is stored on the server (Supabase secret <code>OPENAI_API_KEY</code>), never in this app. Each team gets a
+          daily request limit. If the coach says it isn’t set up yet, the key hasn’t been added.
+        </p>
+      ) : (
+        <div className="space-y-3">
+          <p className="text-sm text-slate-600 dark:text-slate-400">
+            Local mode calls OpenAI directly from this browser with your own key. The key is saved only on this device. Anyone using
+            this browser profile could read it — don’t use a shared computer.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-[1fr_12rem_auto]">
+            <Field label="OpenAI API key" htmlFor="ai-key">
+              <input
+                id="ai-key"
+                type="password"
+                className="input"
+                autoComplete="off"
+                placeholder="sk-…"
+                value={key}
+                onChange={(e) => {
+                  setKey(e.target.value)
+                  setSaved(false)
+                }}
+              />
+            </Field>
+            <Field label="Model" htmlFor="ai-model">
+              <input id="ai-model" className="input" value={model} onChange={(e) => setModel(e.target.value)} />
+            </Field>
+            <button
+              className="btn btn-primary self-end"
+              onClick={() => {
+                localAi.setKey(key)
+                localAi.setModel(model)
+                setSaved(true)
+              }}
+            >
+              {saved ? 'Saved ✓' : 'Save'}
+            </button>
+          </div>
+        </div>
+      )}
+      <label className="flex items-start gap-2 text-sm">
+        <input
+          type="checkbox"
+          className="mt-1"
+          checked={team.ai_in_rounds}
+          disabled={!canEdit}
+          onChange={async (e) => {
+            if (e.target.checked && !confirm('Only turn this on if your advisor (or Knowledge Matters) has confirmed AI help during a live round does not break the “no outside help” pledge. Turn on?')) return
+            try {
+              setTeam(await store.updateTeam(team.id, { ai_in_rounds: e.target.checked }))
+            } catch (err) {
+              setError(err)
+            }
+          }}
+        />
+        <span>
+          Allow the coach while a competition round or mini-challenge is open. <span className="text-slate-500">Off by default — DECA
+          participants pledge they received no outside help, and it’s unconfirmed whether AI counts.</span>
+        </span>
+      </label>
+      <ErrorNote error={error} />
+    </Card>
+  )
+}
+
 export function Settings() {
   return (
     <div className="space-y-4">
@@ -524,6 +602,7 @@ export function Settings() {
       <TeamCard />
       <MembersCard />
       <RoundsCard />
+      <AiCard />
       <DataCard />
       <AccountCard />
       <Card className="space-y-1 text-sm text-slate-600 dark:text-slate-400">

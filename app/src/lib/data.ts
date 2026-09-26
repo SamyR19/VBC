@@ -30,6 +30,20 @@ export async function seedChecklist(store: Store, teamId: string, roundId: strin
   )
 }
 
+/** Blank detail fields for a new experiment idea. */
+export function emptyIdea() {
+  return {
+    variable: null,
+    category: null,
+    from_value: null,
+    to_value: null,
+    expected_effect: null,
+    rationale: null,
+    effort: null,
+    source: 'me' as const,
+  }
+}
+
 // ---- Backup / restore ----
 
 export interface Backup {
@@ -157,13 +171,23 @@ export function attemptsToCsv(
     'final_profit',
     'final_net_worth',
     'final_points',
+    'final_revenue',
+    'final_expenses',
+    'ending_cash',
     'cash_low_point',
     'loan_taken',
+    'total_debt',
+    'interest_paid',
+    'customer_satisfaction',
+    'employees',
+    'locations',
     'sim_periods_completed',
     'minutes_spent',
     'verdict',
+    'run_notes',
     'lesson',
     'tags',
+    'checkpoints',
   ]
   const lines = [header.join(',')]
   for (const a of [...attempts].sort((x, y) => x.started_at.localeCompare(y.started_at))) {
@@ -180,13 +204,23 @@ export function attemptsToCsv(
         a.final_profit,
         a.final_net_worth,
         a.final_points,
+        a.final_revenue,
+        a.final_expenses,
+        a.ending_cash,
         a.cash_low_point,
         a.loan_taken,
+        a.total_debt,
+        a.interest_paid,
+        a.customer_satisfaction,
+        a.employees,
+        a.locations,
         a.sim_periods_completed,
         a.minutes_spent,
         a.verdict,
+        a.run_notes,
         a.lesson,
         a.tags,
+        (a.checkpoints ?? []).map((c) => `${c.period}: profit ${c.profit ?? ''} / net worth ${c.net_worth ?? ''} / cash ${c.cash ?? ''}`),
       ]
         .map(csvCell)
         .join(','),

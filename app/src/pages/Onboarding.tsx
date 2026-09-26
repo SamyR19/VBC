@@ -55,6 +55,7 @@ export function LocalOnboarding() {
         track: 'entrepreneurship',
         business_type: business || null,
         competition_mode: 'auto',
+        ai_in_rounds: false,
         decision_keys: DEFAULT_DECISION_KEYS,
         join_code: null,
         created_at: nowIso(),

@@ -2,9 +2,10 @@ import { Link } from 'react-router-dom'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Card, Delta, Empty, PageHeader, Spinner, Stat, StatusChip } from '../components/ui'
 import { METRIC_LABELS } from '../lib/season'
-import { formatScore, nextEvent, personalBest, progressSeries, roundPhase, scoreOf } from '../lib/metrics'
+import { formatScore, nextEvent, personalBest, progressSeries, roundPhase, scoreOf, variableEffects } from '../lib/metrics'
 import { formatDuration, formatET, formatLocal, isSameLocalDay } from '../lib/time'
 import { useTeam } from '../state/app'
+import { useCoachPage } from '../state/coach'
 import { useActiveRound, useNow, useRows } from '../state/data'
 
 export function Home() {
@@ -15,6 +16,8 @@ export function Home() {
   const { data: timeLogs = [] } = useRows('time_logs')
   const { data: snapshots = [] } = useRows('leaderboard_snapshots')
   const now = useNow(1000 * 30)
+
+  useCoachPage('Home dashboard')
 
   if (isLoading) return <Spinner />
   if (!round) return <Empty title="No rounds yet">Add one in Team settings.</Empty>
@@ -33,6 +36,7 @@ export function Home() {
     .sort((a, b) => b.captured_at.localeCompare(a.captured_at))[0]
   const cutoff = latestSnap?.cutoff_rank2_score ?? round.est_qualifying_cutoff
   const series = progressSeries(inRound, metric)
+  const effects = variableEffects(inRound, metric)
   const next = nextEvent(rounds, now)
   const phase = roundPhase(round, now)
   const queued = backlog
@@ -146,6 +150,55 @@ export function Home() {
                 <Line type="monotone" dataKey="score" stroke="#2563eb" strokeWidth={2} dot={{ r: 3 }} />
               </LineChart>
             </ResponsiveContainer>
+          </div>
+        )}
+      </Card>
+
+      <Card>
+        <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="section-title">What’s working (from your clean tests)</h2>
+          <span className="text-xs text-slate-500">change in {METRIC_LABELS[metric].toLowerCase()} vs. baseline, single-change runs only</span>
+        </div>
+        {effects.length === 0 ? (
+          <p className="text-sm text-slate-500">
+            Appears once you log a run with a baseline and change one decision. The AI coach uses this table too.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-left text-xs text-slate-500">
+                <tr>
+                  <th className="py-1 font-medium">Decision</th>
+                  <th className="py-1 font-medium">Clean tests</th>
+                  <th className="py-1 font-medium">Avg effect</th>
+                  <th className="py-1 font-medium">Best</th>
+                  <th className="py-1 font-medium">Latest change</th>
+                </tr>
+              </thead>
+              <tbody>
+                {effects.slice(0, 8).map((e) => (
+                  <tr key={e.key} className="border-t border-slate-100 dark:border-slate-800">
+                    <td className="py-1.5 font-medium">{e.key}</td>
+                    <td className="py-1.5">
+                      {e.cleanRuns}
+                      {e.mixedRuns > 0 && <span className="text-xs text-slate-500"> (+{e.mixedRuns} mixed)</span>}
+                    </td>
+                    <td className="py-1.5">
+                      <Delta value={e.avgDelta} metric={metric} />
+                    </td>
+                    <td className="py-1.5">
+                      <Delta value={e.bestDelta} metric={metric} />
+                    </td>
+                    <td className="py-1.5 text-xs text-slate-500">
+                      {e.examples[0] ? `${e.examples[0].before ?? '(blank)'} → ${e.examples[0].after ?? '(removed)'}` : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {effects.every((e) => e.cleanRuns < 2) && (
+              <p className="hint">One run per change is weak evidence — repeat promising changes before trusting them.</p>
+            )}
           </div>
         )}
       </Card>

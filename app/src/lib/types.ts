@@ -12,6 +12,8 @@ export interface Team {
   business_type: string | null
   competition_mode: CompetitionMode
   decision_keys: string[]
+  /** Let the AI coach run while a competition round/window is open (off by default). */
+  ai_in_rounds: boolean
   join_code?: string | null
   created_at: string
 }
@@ -54,6 +56,18 @@ export interface RoundWindow {
 export interface DecisionEntry {
   key: string
   value: string
+  /** Decision area, e.g. "Financing". Custom rows have no group. */
+  group?: string
+}
+
+/** Sim-time snapshot ("split"), e.g. the end of Year 2. */
+export interface Checkpoint {
+  period: string
+  profit: number | null
+  net_worth: number | null
+  cash: number | null
+  revenue: number | null
+  note: string | null
 }
 
 export interface Attempt {
@@ -74,6 +88,16 @@ export interface Attempt {
   final_points: number | null
   cash_low_point: number | null
   loan_taken: boolean | null
+  final_revenue: number | null
+  final_expenses: number | null
+  ending_cash: number | null
+  total_debt: number | null
+  interest_paid: number | null
+  customer_satisfaction: number | null
+  employees: number | null
+  locations: number | null
+  checkpoints: Checkpoint[]
+  run_notes: string | null
   sim_periods_completed: number | null
   minutes_spent: number | null
   verdict: Verdict | null
@@ -84,11 +108,21 @@ export interface Attempt {
   created_at: string
 }
 
+export type IdeaSource = 'me' | 'teammate' | 'advisor' | 'ai'
+export type IdeaEffort = 'quick' | 'medium' | 'big'
+
 export interface BacklogItem {
   id: string
   team_id: string
   idea: string
   variable: string | null
+  category: string | null
+  from_value: string | null
+  to_value: string | null
+  expected_effect: string | null
+  rationale: string | null
+  effort: IdeaEffort | null
+  source: IdeaSource | null
   priority: number
   status: 'queued' | 'tested' | 'dropped'
   tested_attempt_id: string | null
